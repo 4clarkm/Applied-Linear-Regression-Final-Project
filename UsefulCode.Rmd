@@ -1,0 +1,61 @@
+---
+title: "Useful Code for Final Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Overview
+I am providing some snippets of code in hopes that they are useful to help you clean the dataset. The code may contain bugs and if you find them, please let me know.
+
+## Code to Unify Time to Central Time
+```{r}
+### Converts all time into CST 
+# timevar: local time from original BTS data
+# state: U.S. state in which the airport is located.
+# city: city in which the airport is located.
+# output: outputs the time in CST
+
+CSTTimeFixer <- function(timevar,state,city) {
+  ## Oddballs ##
+  if(state == "AK") return(timevar + 300)
+  if(state == "HI") return(timevar + 400)
+  if(state == "PR") return(timevar - 200)
+  ## East Coast Time Zones ##
+  # All MI, IN, KS airports are in East Coast time zone
+  if(state %in% c("CT","DE","DC","GA","IN","ME","MD","MA","MI","NH","NJ","NY","NC","OH",
+                  "PA","RI","SC","VT","VA","WV")) return(timevar - 100)
+  # Florida (mostly east coast) needs to be separated
+  if(state == "FL") {
+    return(ifelse(city != "Pensacola, FL",timevar-100,timevar))
+  }
+  # Kentucky (mostly east cost) needs to be separated
+  if(state == "KY") {
+    return(ifelse(city != "Paducah, KY",timevar-100,timevar))
+  }
+  # TN (half east coast) needs to be separated
+  if(state == "TN"){
+    return(ifelse(city == "Chattanooga, TN" | city == "Knoxville,TN",timevar-100,timevar))
+  }
+  
+  
+  ## Mountain Time Zone ##
+  # SD is half in mountain time zone
+  if(state == "SD") {
+    return(ifelse(city == "Rapid City, SD",timevar+100,timevar))
+  }
+  # TX (mostly in Central) needs to be separated
+  if(state == "TX") {
+    return(ifelse(city == "El Paso, TX",timevar+100,timevar))
+  }
+  
+  # All airports in ID are in MT. 
+  # All airports in NE, ND are in Central time zone
+  # All airports in LV, OR are in Pacific time zone
+  if(state %in% c("AZ","CO","ID","KS","MT","NM")) return(timevar + 100)
+  if(state %in% c("CA","NV","OR","WA")) return(timevar+200)
+  return(timevar)
+}
+```
