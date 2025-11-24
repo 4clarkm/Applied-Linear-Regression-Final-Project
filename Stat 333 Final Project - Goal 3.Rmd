@@ -1,0 +1,55 @@
+---
+title: "Stat 333 Final Project"
+output: html_document 
+date: "2025-11-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#Initialization
+```{r, message=FALSE, warning=FALSE}
+
+rm(list = ls())
+setwd("C:/Users/mason/OneDrive/Desktop/2025-2026/Stats 333/Final Project")
+getwd()
+
+
+Airline_Data <- read.csv("AirlineData.csv")
+df <- data.frame(Airline_Data)
+df_flights <- readRDS("df_flights.rds")
+df_cancelled <- readRDS("df_cancelled.rds")
+
+library(dplyr)
+library(ggplot2)
+
+```
+
+
+#Goal 3: Which day of the week results in shortest delays 
+```{r, message=FALSE, warning=FALSE}
+df_flights$Weekday <- weekdays(as.Date(df_flights$Flight_Date))
+
+weekday_levels <- c("Sun", "Mon", "Tue", "Wed", "Thu","Fri", "Sat")
+
+weekday_on_time <- df_flights %>% 
+  group_by(Week) %>% 
+  summarise(
+    Flights = n(),
+    Flights_On_Time = sum(On_Time, na.rm = TRUE),
+    Rate_of_Flights_On_Time = round(mean(On_Time, na.rm = TRUE) * 100, 2)
+  ) %>% 
+  filter(Week %in% weekday_levels) %>%        
+  mutate(Week = factor(Week, levels = weekday_levels, ordered = TRUE)) %>%
+  arrange(match(Week, weekday_levels)) 
+
+ggplot(weekday_on_time, 
+       aes(x = Week, y = Rate_of_Flights_On_Time)) +
+  geom_col(fill = "steelblue") +
+  labs(title = "On-Time Arrival Rate by Day of Week",
+       x = "Day of Week",
+       y = "On-Time Arrival Rate (%)")
+
+```
