@@ -11,6 +11,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(dplyr)
 library(ggplot2)
+library(car)
+library(pROC)
 ```
 
 
@@ -121,10 +123,21 @@ msn_arrive_on_time <- msn %>% group_by(Airline) %>% summarise(Flights = n(), Fli
 msn_arrive_on_time
 
 ggplot(msn_arrive_on_time, aes(x = Airline, Rate_of_Flights_On_Time, y = Rate_of_Flights_On_Time)) + geom_col(fill = "blue") + labs(title = "On Time Arrival Rates of Flights Departing from MSN", x = "Airline", y = "On Time Arrival Rate")
+
+modelt <- glm(On_Time ~ Airline + Dep_Hour + Dist_Dep_Arr, data = msn, family = binomial(link = "logit"))
+summary(modelt)
+
+vif(modelt)
+
+Anova(modelt, type = "III")
+
+rocmodelt <- roc(msn$On_Time ~ fitted(modelt))
+plot(rocmodelt)
+auc(rocmodelt)
 ```
 
 ```{r}
-#Goal 2: Which aairport of the 3 (MSN, MKE, ORD) has the lowest rate of cancelled flights?
+#Goal 2: Which airport of the 3 (MSN, MKE, ORD) has the lowest rate of cancelled flights?
 #----------------------------------------------
 airports <- c("MSN", "MKE", "ORD")
 df_airports <- df %>% filter(Dep_Airport %in% airports)
@@ -134,5 +147,15 @@ cancel_flights
 
 ggplot(cancel_flights, aes(x = Dep_Airport, Rate_of_Cancelled_Flights, y = Rate_of_Cancelled_Flights)) + geom_col(fill = "red") + labs(title = "Rates of Cancelled Flights Departing from MSN, MKE, and ORD", x = "Airport of Departure", y = "Rate of Cancellation")
 
+modelc <- glm(Cancelled ~ Dep_Airport + Airline + Month + Dist_Dep_Arr, data = df_airports, family = binomial)
+summary(modelc)
+
+vif(modelc)
+
+Anova(modelc, type = "III")
+
+rocmodelc <- roc(df_airports$Cancelled ~ fitted(modelc))
+plot(rocmodelc)
+auc(rocmodelc)
 ```
 
