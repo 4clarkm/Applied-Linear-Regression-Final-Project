@@ -1,0 +1,139 @@
+---
+title: 'Goal #3'
+output: html_document
+date: "2025-11-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+>Initialization
+
+```{r, message=FALSE, warning=FALSE, results='hide' }
+rm(list = ls())
+setwd("C:/Users/mason/OneDrive/Desktop/2025-2026/Stats 333/Final Project")
+getwd()
+
+library(ggplot2)
+library(dplyr)
+library(car)
+
+
+Airline_Data <- read.csv("AirlineData.csv")
+df <- data.frame(Airline_Data)
+df_flights <- readRDS("df_flights.rds")
+df_cancelled <- readRDS("df_cancelled.rds")
+
+```
+
+>The code for summarizing flight data by weekday was adapted with the help of ChatGPT (OpenAI, 2025).
+
+```{r}
+df_flights$Weekday <- weekdays(as.Date(df_flights$Flight_Date))
+
+weekday_on_time <- df_flights %>%
+  group_by(Week) %>%
+  summarise(Rate_On_Time = mean(On_Time, na.rm = TRUE) * 100) %>%
+  mutate(Week = factor(Week, levels = c("Sun","Mon","Tue","Wed","Thu","Fri","Sat"), ordered = TRUE))
+
+ggplot(weekday_on_time, aes(x = Week, y = Rate_On_Time)) +
+  geom_col(fill = "steelblue") +
+  labs(title = "On-Time Arrival Rate by Day of Week",
+       x = "Day of Week",
+       y = "On-Time Arrival Rate (%)")
+```
+
+
+>Modeling 
+
+```{r}
+df_flights$Late <- ifelse(df_flights$Arr_Delay > 0, 1, 0)
+
+df_flights$Airline <- as.factor(df_flights$Airline)
+df_flights$Week <- as.factor(df_flights$Week)
+
+model <- glm(On_Time ~  Week, data = df_flights, family = binomial)
+summary(model)
+
+odds_ratios <- exp(coef(model))
+odds_ratios
+
+```
+
+> General model that uses Friday as refrence level, can be applied to a rule of thumb on what days are most likely to have delays. The model shows that on-time flight odds vary by day of the week. Thursday has the highest odds of being on time (Odds Ratio ≈ 1.27), followed by Wednesday (Odds Ratio ≈ 1.24). Sunday has the lowest odds (Odds Ratio ≈ 0.74), indicating it is the day most likely to experience delays. Monday, Tuesday, and Saturday are similar to Friday.
+
+
+>Now lets apply this idea to NYC airports "JFK", "LGA", "EWR". To determine what day of the week you should fly out of each airport. 
+
+```{r, message=FALSE, warning=FALSE, results='hide'}
+ny_airports <- c("JFK", "LGA", "EWR")
+df_ny <- df_flights[df_flights$Dep_Airport %in% ny_airports, ]
+df_ny$Week <- factor(df_ny$Week, levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"))
+
+```
+
+```{r}
+ny_model <- glm(On_Time ~ Week * Dep_Airport, family = binomial, data = df_ny)
+summary(ny_model)
+```
+
+>Note that a Monday flight out of EWR is our refrence level for this model.
+
+>Log Odds Table 
+
+```{r,message=FALSE, warning=FALSE, results='hide'}
+new_data <- expand.grid(
+  Week = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
+  Dep_Airport = c("EWR", "JFK", "LGA")
+)
+
+new_data$log_odds <- predict(ny_model, newdata = new_data, type = "link")
+new_data
+
+```
+
+```{r}
+
+odds_ratios <- exp(coef(ny_model))
+or_table <- cbind(Odds_Ratio = odds_ratios)
+or_table
+
+```
+
+>Effect of day of the week (averaging across airports)
+Tuesday: 0.75 → slightly lower odds than Monday.
+Wednesday: 0.98 → basically the same as Monday.
+Thursday: 0.78 → lower odds.
+Friday: 0.67 → noticeably lower odds.
+Saturday: 0.99 → same as Monday.
+Sunday: 0.61 → lower odds.
+Interpretation: Flights on Friday and Sunday are less likely to be on time from EWR.
+
+>Key takeaways
+ Best choices for on-time flights:
+ EWR is generally reliable any day.
+ JFK on Thursday or Tuesday is surprisingly good.
+ LGA on Thursday also shows improvement.
+ 
+>Model Diagnostics (Multicolinearity/Effectiveness)
+
+```{r}
+vif(ny_model)
+
+ny_model_null <- glm(On_Time ~ 1, family = binomial, data = df_ny)
+
+ny_model <- glm(On_Time ~ Week*Dep_Airport, family = binomial, data = df_ny)
+
+anova(ny_model_null, ny_model, test = "Chisq")
+
+```
+
+
+
+
+
+
+
+
